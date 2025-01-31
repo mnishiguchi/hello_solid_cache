@@ -1,0 +1,29 @@
+<div class="max-w-lg mx-auto p-6">
+  <h1 class="text-2xl font-bold mb-4 text-gray-900">
+    Fragment Caching Demo with Solid Cache
+  </h1>
+  <p class="mb-4 text-gray-700 leading-relaxed">
+    This page demonstrates how Rails' <strong>fragment caching</strong> can speed up an expensive
+    operation. We pause for <em>2 seconds</em> when rendering the block for the first time,
+    then cache it in the database with Solid Cache so subsequent reloads are instant.
+  </p>
+  <p class="mb-4 text-gray-700 leading-relaxed">
+    In development, caching is disabled by default.
+    You can toggle it with:
+    <pre class="text-xs p-2 bg-white rounded mt-2">
+docker compose run --rm web rails dev:cache
+    </pre>
+  </p>
+  <hr class="mb-6"/>
+  <% cache("expensive_block") do %>
+    <% sleep 2 %> <!-- Simulate an expensive operation -->
+    <div class="p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+      <p class="mb-1 font-semibold text-blue-700">
+        Expensive block rendered at: <%= Time.current %>
+      </p>
+      <p class="text-sm text-gray-600">
+        We paused for 2 seconds before rendering this the first time.
+      </p>
+    </div>
+  <% end %>
+</div>
