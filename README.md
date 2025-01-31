@@ -165,3 +165,159 @@ docker compose exec web bin/rails console
 ```ruby
 Rails.cache.clear
 ```
+
+---
+
+## How to Set Up Solid Cache
+
+This section describes the minimal steps required to integrate Solid Cache into a Rails 8.0 application.
+
+### 1. Install Solid Cache
+
+Solid Cache is included in new Rails 8 apps. If missing, add it manually:
+
+```bash
+bundle add solid_cache
+bin/rails solid_cache:install
+```
+
+This sets Solid Cache as the production cache store, creates `config/cache.yml`, and generates `db/cache_schema.rb`.
+
+### 2. Configure the Cache Database (`config/database.yml`)
+
+Modify `config/database.yml` to define a separate cache database:
+
+```yaml
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  host: db
+  username: postgres
+  password: password
+
+development:
+  primary:
+    <<: *default
+    database: myapp_development
+  cache:
+    <<: *default
+    database: myapp_development_cache
+    migrations_paths: db/cache_migrate
+
+test:
+  primary:
+    <<: *default
+    database: myapp_test
+  cache:
+    <<: *default
+    database: myapp_test_cache
+    migrations_paths: db/cache_migrate
+
+production:
+  primary: &primary_production
+    <<: *default
+    database: myapp_production
+    username: <%= ENV["MYAPP_DATABASE_USER"] %>
+    password: <%= ENV["MYAPP_DATABASE_PASSWORD"] %>
+  cache:
+    <<: *primary_production
+    database: myapp_production_cache
+    migrations_paths: db/cache_migrate
+```
+
+### 3. Configure Cache Settings (`config/cache.yml`)
+
+Ensure `config/cache.yml` defines cache storage settings:
+
+```yaml
+default: &default
+  store_options:
+    max_size: <%= 256.megabytes %>
+    namespace: <%= Rails.env %>
+
+development:
+  database: cache
+  <<: *default
+
+test:
+  database: cache
+  <<: *default
+
+production:
+  databases: [production_cache1, production_cache2] # Optional for sharding
+  <<: *default
+```
+
+### 4. Set Cache Store in Rails Environments
+
+Modify Rails environment configurations to use Solid Cache:
+
+#### Development (`config/environments/development.rb`)
+
+```ruby
+Rails.application.configure do
+  if Rails.root.join("tmp/caching-dev.txt").exist?
+    config.action_controller.perform_caching = true
+    config.action_controller.enable_fragment_cache_logging = true
+  else
+    config.action_controller.perform_caching = false
+  end
+
+  config.cache_store = :solid_cache_store
+end
+```
+
+#### Production (`config/environments/production.rb`)
+
+```ruby
+Rails.application.configure do
+  config.cache_store = :solid_cache_store
+end
+```
+
+### 5. Initialize the Cache Database
+
+Run the following command to prepare both the primary and cache databases:
+
+```bash
+bin/rails db:prepare
+```
+
+This ensures:
+
+- Both databases exist.
+- The Solid Cache schema (`db/cache_schema.rb`) is loaded.
+
+### 6. Verify Solid Cache Setup
+
+Check if caching works in Rails Console:
+
+```bash
+bin/rails console
+```
+
+```ruby
+Rails.cache.write("test_key", "Hello Solid Cache")
+Rails.cache.read("test_key") # => "Hello Solid Cache"
+```
+
+Inspect the cache database:
+
+```bash
+bin/rails dbconsole --database=cache
+```
+
+```sql
+SELECT * FROM solid_cache_entries;
+```
+
+If caching works, this table should contain cached fragments.
+
+### 7. Clearing the Cache
+
+To clear the cache at any time:
+
+```bash
+bin/rails runner "Rails.cache.clear"
+```
