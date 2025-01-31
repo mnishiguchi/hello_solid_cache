@@ -24,8 +24,15 @@ default: &default
   password: password
 
 development:
-  <<: *default
-  database: hello_solid_cache_development
+  primary:
+    <<: *default
+    database: hello_solid_cache_development
+  cache:
+    <<: *default
+    # Use a separate cache DB in dev so we can see the separate tables
+    database: hello_solid_cache_development_cache
+    # Ensure we store cache migrations in db/cache_migrate
+    migrations_paths: db/cache_migrate
 
   # The specified database role being used to connect to PostgreSQL.
   # To create additional roles in PostgreSQL see `$ createuser --help`.
@@ -58,8 +65,13 @@ development:
 # re-generated from your development database when you run "rake".
 # Do not set this db to the same as development or production.
 test:
-  <<: *default
-  database: hello_solid_cache_test
+  primary:
+    <<: *default
+    database: hello_solid_cache_test
+  cache:
+    <<: *default
+    database: hello_solid_cache_test_cache
+    migrations_paths: db/cache_migrate
 
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
